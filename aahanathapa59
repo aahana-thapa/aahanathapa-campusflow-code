@@ -1,0 +1,724 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <queue>
+#include <algorithm>
+#include <limits>
+using namespace std;
+
+// MODULE 1: USER AND ROLE MANAGEMENT
+// Work: Demonstrates abstraction, inheritance and polymorphism.
+
+class User {
+protected:
+    int userID;
+    string name;
+
+public:
+    User(int id,string n) {
+        userID=id;
+        name=n;
+    }
+
+    virtual void showRole()=0;
+    virtual ~User() {}
+};
+
+class Student:public User {
+public:
+    Student(int id,string n):User(id,n) {}
+
+    void showRole() override {
+        cout<<"Role: Student\n";
+        cout<<"Student ID: "<<userID<<endl;
+        cout<<"Student Name: "<<name<<endl;
+    }
+};
+
+class Administrator:public User {
+public:
+    Administrator(int id,string n):User(id,n) {}
+
+    void showRole() override {
+        cout<<"Role: Administrator\n";
+        cout<<"Administrator ID: "<<userID<<endl;
+        cout<<"Administrator Name: "<<name<<endl;
+    }
+};
+
+
+// MODULE 2: COMPLAINT REGISTRATION AND TRACKING
+// Work: Accepts complaint details and stores complaints
+// in a custom singly linked list with automatically generated IDs.
+
+class Complaint {
+public:
+    int id;
+    string studentName;
+    string category;
+    string location;
+    string description;
+    string date;
+    string status;
+    int severity;
+    int affectedPeople;
+    int daysPending;
+    int priority;
+
+    Complaint() {
+        id=0;
+        severity=1;
+        affectedPeople=1;
+        daysPending=0;
+        priority=0;
+        status="Pending";
+    }
+
+    // MODULE 4: PRIORITY AND EMERGENCY MANAGEMENT
+    // Work: Calculates the priority score of each complaint.
+
+    void calculatePriority() {
+        priority=severity*20+
+                 min(affectedPeople,100)+
+                 min(daysPending,30);
+    }
+
+    // Operator overloading: compares complaint priorities.
+
+    bool operator<(const Complaint& c) const {
+        return priority<c.priority;
+    }
+};
+
+struct Node {
+    Complaint data;
+    Node* next;
+
+    Node(Complaint c) {
+        data=c;
+        next=NULL;
+    }
+};
+
+// Forward declaration
+class PriorityManager;
+
+class ComplaintManager {
+private:
+    Node* head;
+    Node* tail;
+    int nextID;
+
+public:
+    ComplaintManager() {
+        head=NULL;
+        tail=NULL;
+        nextID=1001;
+    }
+
+    ~ComplaintManager() {
+        Node* current=head;
+
+        while(current!=NULL) {
+            Node* temp=current;
+            current=current->next;
+            delete temp;
+        }
+    }
+
+    Complaint* findComplaint(int id) {
+        Node* current=head;
+
+        while(current!=NULL) {
+            if(current->data.id==id)
+                return &(current->data);
+
+            current=current->next;
+        }
+
+        return NULL;
+    }
+
+    void addComplaint() {
+        Complaint c;
+        c.id=nextID++;
+
+        cout<<"\nEnter Student Name: ";
+        getline(cin,c.studentName);
+
+        cout<<"Enter Complaint Category: ";
+        getline(cin,c.category);
+
+        cout<<"Enter Campus Location: ";
+        getline(cin,c.location);
+
+        cout<<"Enter Complaint Description: ";
+        getline(cin,c.description);
+
+        cout<<"Enter Complaint Date (DD-MM-YYYY): ";
+        getline(cin,c.date);
+
+        cout<<"Enter Severity (1-10): ";
+        cin>>c.severity;
+
+        while(cin.fail()||c.severity<1||c.severity>10) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(),'\n');
+            cout<<"Enter valid severity (1-10): ";
+            cin>>c.severity;
+        }
+
+        cout<<"Enter Number of People Affected: ";
+        cin>>c.affectedPeople;
+
+        while(cin.fail()||c.affectedPeople<1) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(),'\n');
+            cout<<"Enter a valid number of people (at least 1): ";
+            cin>>c.affectedPeople;
+        }
+
+        cout<<"Enter Days Pending: ";
+        cin>>c.daysPending;
+
+        while(cin.fail()||c.daysPending<0) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(),'\n');
+            cout<<"Enter valid days pending (0 or more): ";
+            cin>>c.daysPending;
+        }
+
+        cin.ignore(numeric_limits<streamsize>::max(),'\n');
+
+        c.calculatePriority();
+
+        Node* newNode=new Node(c);
+
+        if(head==NULL) {
+            head=newNode;
+            tail=newNode;
+        } else {
+            tail->next=newNode;
+            tail=newNode;
+        }
+
+        cout<<"\nComplaint Registered Successfully!\n";
+        cout<<"Generated Complaint ID: "<<c.id<<endl;
+        cout<<"Priority Score: "<<c.priority<<endl;
+    }
+
+    void showComplaints() {
+        Node* current=head;
+
+        if(current==NULL) {
+            cout<<"\nNo complaints registered yet.\n";
+            return;
+        }
+
+        while(current!=NULL) {
+            Complaint c=current->data;
+
+            cout<<"\n-----------------------------\n";
+            cout<<"Complaint ID: "<<c.id<<endl;
+            cout<<"Student Name: "<<c.studentName<<endl;
+            cout<<"Category: "<<c.category<<endl;
+            cout<<"Location: "<<c.location<<endl;
+            cout<<"Description: "<<c.description<<endl;
+            cout<<"Complaint Date: "<<c.date<<endl;
+            cout<<"Status: "<<c.status<<endl;
+            cout<<"Severity: "<<c.severity<<endl;
+            cout<<"People Affected: "<<c.affectedPeople<<endl;
+            cout<<"Days Pending: "<<c.daysPending<<endl;
+            cout<<"Priority Score: "<<c.priority<<endl;
+
+            current=current->next;
+        }
+    }
+
+    // Pass every registered complaint into the priority manager.
+    // The linked list remains the main complaint record store.
+
+    void loadPriorities(PriorityManager& pm);
+};
+
+
+// MODULE 4: PRIORITY AND EMERGENCY MANAGEMENT
+// Work: Uses a custom MAX-HEAP to arrange complaints
+// from highest priority to lowest priority.
+
+struct HeapItem {
+    int id;
+    int priority;
+};
+
+class PriorityManager {
+private:
+    vector<HeapItem> heap;
+
+    void heapifyUp(int i) {
+        while(i>0) {
+            int parent=(i-1)/2;
+
+            if(heap[parent].priority>=heap[i].priority)
+                break;
+
+            swap(heap[parent],heap[i]);
+            i=parent;
+        }
+    }
+
+    void heapifyDown(int i) {
+        int n=heap.size();
+
+        while(true) {
+            int largest=i;
+            int left=2*i+1;
+            int right=2*i+2;
+
+            if(left<n&&heap[left].priority>heap[largest].priority)
+                largest=left;
+
+            if(right<n&&heap[right].priority>heap[largest].priority)
+                largest=right;
+
+            if(largest==i)
+                break;
+
+            swap(heap[i],heap[largest]);
+            i=largest;
+        }
+    }
+
+public:
+    void clear() {
+        heap.clear();
+    }
+
+    void insert(int id,int priority) {
+        HeapItem item;
+        item.id=id;
+        item.priority=priority;
+
+        heap.push_back(item);
+        heapifyUp(heap.size()-1);
+    }
+
+    bool empty() {
+        return heap.empty();
+    }
+
+    HeapItem top() {
+        return heap[0];
+    }
+
+    void removeTop() {
+        if(heap.empty())
+            return;
+
+        heap[0]=heap.back();
+        heap.pop_back();
+
+        if(!heap.empty())
+            heapifyDown(0);
+    }
+
+    // Extracts and displays the highest priority first.
+
+    void showPriorityOrder() {
+        if(heap.empty()) {
+            cout<<"\nNo complaints available for prioritisation.\n";
+            return;
+        }
+
+        cout<<"\n===== COMPLAINTS ARRANGED BY PRIORITY =====\n";
+        cout<<"Highest priority appears first.\n\n";
+
+        int rank=1;
+
+        while(!heap.empty()) {
+            HeapItem item=top();
+
+            cout<<rank<<". Complaint ID: "<<item.id
+                <<" | Priority Score: "<<item.priority<<endl;
+
+            removeTop();
+            rank++;
+        }
+    }
+};
+
+// Builds a fresh heap from the current complaint records.
+// This ensures the displayed order uses the latest stored scores.
+
+void ComplaintManager::loadPriorities(PriorityManager& pm) {
+    pm.clear();
+
+    Node* current=head;
+
+    while(current!=NULL) {
+        pm.insert(current->data.id,current->data.priority);
+        current=current->next;
+    }
+}
+
+
+// MODULE 5: STATUS HISTORY AND UNDO
+// Work: Maintains status-change history using a stack.
+// Undo restores the previous status.
+
+struct Action {
+    int complaintID;
+    string oldStatus;
+    string newStatus;
+};
+
+class HistoryManager {
+private:
+    vector<Action> history;
+
+public:
+    bool updateStatus(ComplaintManager& manager,int id,string newStatus) {
+        Complaint* c=manager.findComplaint(id);
+
+        if(c==NULL) {
+            cout<<"Complaint ID not found.\n";
+            return false;
+        }
+
+        if(newStatus!="Pending"&&
+           newStatus!="In Progress"&&
+           newStatus!="Resolved") {
+            cout<<"Invalid status entered.\n";
+            return false;
+        }
+
+        Action a;
+        a.complaintID=id;
+        a.oldStatus=c->status;
+        a.newStatus=newStatus;
+
+        history.push_back(a);
+        c->status=newStatus;
+
+        cout<<"Complaint status updated successfully.\n";
+        return true;
+    }
+
+    void undo(ComplaintManager& manager) {
+        if(history.empty()) {
+            cout<<"No status change available to undo.\n";
+            return;
+        }
+
+        Action a=history.back();
+        Complaint* c=manager.findComplaint(a.complaintID);
+
+        if(c==NULL||c->status!=a.newStatus) {
+            cout<<"Undo not possible because the status has changed.\n";
+            return;
+        }
+
+        c->status=a.oldStatus;
+        history.pop_back();
+
+        cout<<"Last status change undone successfully.\n";
+        cout<<"Restored Status: "<<c->status<<endl;
+    }
+};
+
+
+// MODULE 7: CAMPUS GRAPH AND ROUTE FINDING
+// Work: Represents campus locations as vertices and roads
+// as weighted edges. Demonstrates BFS, DFS and Dijkstra's algorithm.
+
+class CampusGraph {
+private:
+    vector<vector<pair<int,int>>> graph;
+
+public:
+    CampusGraph(int n) {
+        graph.resize(n);
+    }
+
+    void addRoad(int u,int v,int weight) {
+        if(u<0||v<0||u>=graph.size()||v>=graph.size()) {
+            cout<<"Invalid location number. Road not added.\n";
+            return;
+        }
+
+        graph[u].push_back({v,weight});
+        graph[v].push_back({u,weight});
+    }
+
+    void BFS(int start) {
+        if(start<0||start>=graph.size()) {
+            cout<<"Invalid starting location.\n";
+            return;
+        }
+
+        vector<bool> visited(graph.size(),false);
+        queue<int> q;
+
+        visited[start]=true;
+        q.push(start);
+
+        cout<<"BFS Traversal: ";
+
+        while(!q.empty()) {
+            int u=q.front();
+            q.pop();
+
+            cout<<u<<" ";
+
+            for(auto road:graph[u]) {
+                int v=road.first;
+
+                if(!visited[v]) {
+                    visited[v]=true;
+                    q.push(v);
+                }
+            }
+        }
+
+        cout<<endl;
+    }
+
+    void DFSHelper(int u,vector<bool>& visited) {
+        visited[u]=true;
+        cout<<u<<" ";
+
+        for(auto road:graph[u]) {
+            int v=road.first;
+
+            if(!visited[v])
+                DFSHelper(v,visited);
+        }
+    }
+
+    void DFS(int start) {
+        if(start<0||start>=graph.size()) {
+            cout<<"Invalid starting location.\n";
+            return;
+        }
+
+        vector<bool> visited(graph.size(),false);
+
+        cout<<"DFS Traversal: ";
+        DFSHelper(start,visited);
+        cout<<endl;
+    }
+
+    void shortestPaths(int start) {
+        if(start<0||start>=graph.size()) {
+            cout<<"Invalid starting location.\n";
+            return;
+        }
+
+        const int INF=numeric_limits<int>::max();
+        vector<int> dist(graph.size(),INF);
+
+        priority_queue<
+            pair<int,int>,
+            vector<pair<int,int>>,
+            greater<pair<int,int>>
+        > pq;
+
+        dist[start]=0;
+        pq.push({0,start});
+
+        while(!pq.empty()) {
+            int distance=pq.top().first;
+            int u=pq.top().second;
+            pq.pop();
+
+            if(distance!=dist[u])
+                continue;
+
+            for(auto road:graph[u]) {
+                int v=road.first;
+                int weight=road.second;
+
+                if(dist[u]<=INF-weight&&
+                   dist[u]+weight<dist[v]) {
+                    dist[v]=dist[u]+weight;
+                    pq.push({dist[v],v});
+                }
+            }
+        }
+
+        cout<<"Shortest Distances from Location "<<start<<":\n";
+
+        for(int i=0;i<dist.size();i++) {
+            cout<<"Location "<<i<<": ";
+
+            if(dist[i]==INF)
+                cout<<"Unreachable";
+            else
+                cout<<dist[i];
+
+            cout<<endl;
+        }
+    }
+};
+
+
+// MAIN PROGRAM: INTEGRATES THE IMPLEMENTED MODULES
+
+int main() {
+    ComplaintManager manager;
+    PriorityManager priorityManager;
+    HistoryManager historyManager;
+
+    int choice;
+
+    do {
+        cout<<"\n========== CAMPUSFLOW ==========\n";
+        cout<<"1. Register Complaint\n";
+        cout<<"2. Display All Complaints\n";
+        cout<<"3. Search Complaint by ID\n";
+        cout<<"4. Arrange Complaints by Priority\n";
+        cout<<"5. Update Complaint Status\n";
+        cout<<"6. Undo Last Status Change\n";
+        cout<<"7. Demonstrate Campus Graph\n";
+        cout<<"0. Exit\n";
+        cout<<"Enter Your Choice: ";
+
+        cin>>choice;
+
+        if(cin.fail()) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(),'\n');
+            cout<<"Please enter a valid menu number.\n";
+            continue;
+        }
+
+        cin.ignore(numeric_limits<streamsize>::max(),'\n');
+
+        if(choice==1) {
+            manager.addComplaint();
+        }
+
+        else if(choice==2) {
+            manager.showComplaints();
+        }
+
+        else if(choice==3) {
+            int id;
+
+            cout<<"Enter Complaint ID: ";
+            cin>>id;
+            cin.ignore(numeric_limits<streamsize>::max(),'\n');
+
+            Complaint* c=manager.findComplaint(id);
+
+            if(c!=NULL) {
+                cout<<"\nComplaint Found!\n";
+                cout<<"Student Name: "<<c->studentName<<endl;
+                cout<<"Category: "<<c->category<<endl;
+                cout<<"Location: "<<c->location<<endl;
+                cout<<"Complaint Date: "<<c->date<<endl;
+                cout<<"Status: "<<c->status<<endl;
+                cout<<"Priority Score: "<<c->priority<<endl;
+            } else {
+                cout<<"Complaint ID not found.\n";
+            }
+        }
+
+        else if(choice==4) {
+            // Rebuild the heap using all current complaints.
+            // Displaying priority order removes heap entries,
+            // but the original complaints remain in the linked list.
+
+            manager.loadPriorities(priorityManager);
+            priorityManager.showPriorityOrder();
+        }
+
+        else if(choice==5) {
+            int id;
+            string status;
+
+            cout<<"Enter Complaint ID: ";
+            cin>>id;
+            cin.ignore(numeric_limits<streamsize>::max(),'\n');
+
+            cout<<"Enter New Status (Pending/In Progress/Resolved): ";
+            getline(cin,status);
+
+            historyManager.updateStatus(manager,id,status);
+        }
+
+        else if(choice==6) {
+            historyManager.undo(manager);
+        }
+
+        else if(choice==7) {
+            int n;
+
+            cout<<"Enter Number of Campus Locations (1-100): ";
+            cin>>n;
+
+            if(cin.fail()||n<=0||n>100) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(),'\n');
+                cout<<"Invalid number of locations.\n";
+                continue;
+            }
+
+            CampusGraph campus(n);
+
+            int roads;
+            cout<<"Enter Number of Roads: ";
+            cin>>roads;
+
+            if(cin.fail()||roads<0) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(),'\n');
+                cout<<"Invalid number of roads.\n";
+                continue;
+            }
+
+            for(int i=0;i<roads;i++) {
+                int u,v,w;
+
+                cout<<"\nEnter Starting Location Number: ";
+                cin>>u;
+
+                cout<<"Enter Ending Location Number: ";
+                cin>>v;
+
+                cout<<"Enter Road Distance: ";
+                cin>>w;
+
+                if(cin.fail()||w<0) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(),'\n');
+                    cout<<"Invalid road details. Road not added.\n";
+                    continue;
+                }
+
+                campus.addRoad(u,v,w);
+            }
+
+            int start;
+
+            cout<<"\nEnter Starting Location Number: ";
+            cin>>start;
+            cin.ignore(numeric_limits<streamsize>::max(),'\n');
+
+            campus.BFS(start);
+            campus.DFS(start);
+            campus.shortestPaths(start);
+        }
+
+        else if(choice==0) {
+            cout<<"Exiting CampusFlow. Goodbye!\n";
+        }
+
+        else {
+            cout<<"Invalid choice. Please try again.\n";
+        }
+
+    } while(choice!=0);
+
+    return 0;
+}
