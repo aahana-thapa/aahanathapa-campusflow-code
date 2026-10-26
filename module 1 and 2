@@ -1,0 +1,77 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <queue>
+#include <algorithm>
+#include <limits>
+using namespace std;
+
+// MODULE 1: USER AND ROLE MANAGEMENT
+// Work: Demonstrates abstraction, inheritance and polymorphism.
+
+class User {
+protected:
+    int userID;
+    string name;
+
+public:
+    User(int id,string n) {
+        userID=id;
+        name=n;
+    }
+
+    virtual void showRole()=0;
+    virtual ~User() {}
+};
+
+class Student:public User {
+public:
+    Student(int id,string n):User(id,n) {}
+
+    void showRole() override {
+        cout<<"Role: Student\n";
+        cout<<"Student ID: "<<userID<<endl;
+        cout<<"Student Name: "<<name<<endl;
+    }
+};
+
+class Administrator:public User {
+public:
+    Administrator(int id,string n):User(id,n) {}
+
+    void showRole() override {
+        cout<<"Role: Administrator\n";
+        cout<<"Administrator ID: "<<userID<<endl;
+        cout<<"Administrator Name: "<<name<<endl;
+    }
+};
+
+
+// MODULE 2: COMPLAINT REGISTRATION AND TRACKING
+// Work: Accepts complaint details and stores complaints
+// in a custom singly linked list with automatically generated IDs.
+
+class Complaint {
+public:
+    int id;
+    string studentName;
+    string category;
+    string location;
+    string description;
+    string date;
+    string status;
+    int severity;
+    int affectedPeople;
+    int daysPending;
+    int priority;
+
+    Complaint() {
+        id=0;
+        severity=1;
+        affectedPeople=1;
+        daysPending=0;
+        priority=0;
+        status="Pending";
+    }
+
+   
