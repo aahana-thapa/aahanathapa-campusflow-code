@@ -1,0 +1,72 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <queue>
+#include <algorithm>
+#include <limits>
+using namespace std;
+
+            
+// MODULE 5: STATUS HISTORY AND UNDO
+// Work: Maintains status-change history using a stack.
+// Undo restores the previous status.
+
+struct Action {
+    int complaintID;
+    string oldStatus;
+    string newStatus;
+};
+
+class HistoryManager {
+private:
+    vector<Action> history;
+
+public:
+    bool updateStatus(ComplaintManager& manager,int id,string newStatus) {
+        Complaint* c=manager.findComplaint(id);
+
+        if(c==NULL) {
+            cout<<"Complaint ID not found.\n";
+            return false;
+        }
+
+        if(newStatus!="Pending"&&
+           newStatus!="In Progress"&&
+           newStatus!="Resolved") {
+            cout<<"Invalid status entered.\n";
+            return false;
+        }
+
+        Action a;
+        a.complaintID=id;
+        a.oldStatus=c->status;
+        a.newStatus=newStatus;
+
+        history.push_back(a);
+        c->status=newStatus;
+
+        cout<<"Complaint status updated successfully.\n";
+        return true;
+    }
+
+    void undo(ComplaintManager& manager) {
+        if(history.empty()) {
+            cout<<"No status change available to undo.\n";
+            return;
+        }
+
+        Action a=history.back();
+        Complaint* c=manager.findComplaint(a.complaintID);
+
+        if(c==NULL||c->status!=a.newStatus) {
+            cout<<"Undo not possible because the status has changed.\n";
+            return;
+        }
+
+        c->status=a.oldStatus;
+        history.pop_back();
+
+        cout<<"Last status change undone successfully.\n";
+        cout<<"Restored Status: "<<c->status<<endl;
+    }
+};
